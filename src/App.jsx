@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useLayoutEffect } from "react";
-import { X, Info, GitBranch, RotateCcw, Check, ChevronDown, Truck, Repeat, Calendar, ArrowRight, Layers } from "lucide-react";
+import { X, Info, RotateCcw, Check, ChevronDown, Truck, Repeat, Calendar, ArrowRight,
+  LayoutGrid, Workflow, Package, ClipboardList, Building2, Users, FolderOpen } from "lucide-react";
 
 /* ============================================================
    SHARED: department styling
@@ -178,7 +179,7 @@ function cbBuildPath(sku, receipt) {
 }
 
 /* ============================================================
-   SHARED UI COMPONENTS
+   SHARED UI: flowchart + detail + legend
    ============================================================ */
 function FlowNode({ name, stepTable, onClick, nodeRef }) {
   const s = stepTable[name] || { dept:"Shipping", desc:"" };
@@ -296,7 +297,7 @@ function DetailPanel({ detail, stepTable, onClose }) {
 }
 
 /* ============================================================
-   DENTURES APP
+   DENTURES VIEW
    ============================================================ */
 function CourierLeg({ label }) {
   return (
@@ -306,7 +307,7 @@ function CourierLeg({ label }) {
   );
 }
 
-function DentureApp() {
+function DentureView() {
   const [view, setView] = useState("journey");
   const [group, setGroup] = useState(null);
   const [product, setProduct] = useState(null);
@@ -359,7 +360,7 @@ function DentureApp() {
       <div className="mb-3 flex gap-1.5">
         {[["journey","Patient Journey"],["flow","Product Lab Flow"]].map(([k,label]) => (
           <button key={k} onClick={() => setView(k)} className="rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-all"
-            style={{ background: view===k?"#4f46e5":"#fff", color: view===k?"#fff":"#475569", border:`1px solid ${view===k?"#4f46e5":"#e2e8f0"}` }}>
+            style={{ background: view===k?"#0f172a":"#fff", color: view===k?"#fff":"#475569", border:`1px solid ${view===k?"#0f172a":"#e2e8f0"}` }}>
             {label}
           </button>
         ))}
@@ -393,42 +394,42 @@ function DentureApp() {
         <>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: group?"#4f46e5":"#e2e8f0", color: group?"#fff":"#64748b" }}>{group?<Check className="h-3 w-3" />:1}</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: group?"#0f172a":"#e2e8f0", color: group?"#fff":"#64748b" }}>{group?<Check className="h-3 w-3" />:1}</span>
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">1 · Product family</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {groups.map(g => { const on=group===g; return (
                 <button key={g} onClick={() => { setGroup(g); setProduct(null); }} className="rounded-lg px-3 py-1.5 text-xs font-medium transition-all"
-                  style={{ background:on?"#4f46e5":"#f1f5f9", color:on?"#fff":"#334155", border:`1px solid ${on?"#4f46e5":"#e2e8f0"}` }}>{g}</button>
+                  style={{ background:on?"#0f172a":"#f1f5f9", color:on?"#fff":"#334155", border:`1px solid ${on?"#0f172a":"#e2e8f0"}` }}>{g}</button>
               );})}
             </div>
           </div>
 
           <div className={`mt-2.5 rounded-xl border p-3 transition-all ${group?"border-slate-200 bg-white":"border-slate-100 bg-slate-50 opacity-60"}`}>
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: product?"#4f46e5":"#e2e8f0", color: product?"#fff":"#64748b" }}>{product?<Check className="h-3 w-3" />:2}</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: product?"#0f172a":"#e2e8f0", color: product?"#fff":"#64748b" }}>{product?<Check className="h-3 w-3" />:2}</span>
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">2 · Product</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {(group?productsInGroup:[]).map(p => { const on=product?.name===p.name; return (
                 <button key={p.name} onClick={() => setProduct(p)} className="rounded-lg px-3 py-1.5 text-xs font-medium transition-all"
-                  style={{ background:on?"#4f46e5":"#f1f5f9", color:on?"#fff":"#334155", border:`1px solid ${on?"#4f46e5":"#e2e8f0"}` }}>{p.name}</button>
+                  style={{ background:on?"#0f172a":"#f1f5f9", color:on?"#fff":"#334155", border:`1px solid ${on?"#0f172a":"#e2e8f0"}` }}>{p.name}</button>
               );})}
               {!group && <span className="text-xs text-slate-400">Select a family first</span>}
             </div>
           </div>
 
-          <div className="mt-4 rounded-xl border p-4" style={{ borderColor: sku?"#a5b4fc":"#e2e8f0", background: sku?"#eef2ff":"#fff" }}>
+          <div className="mt-4 rounded-xl border p-4" style={{ borderColor: sku?"#cbd5e1":"#e2e8f0", background: sku?"#f8fafc":"#fff" }}>
             {!sku ? (
               <div className="flex items-center gap-2 text-sm text-slate-500"><ChevronDown className="h-4 w-4" /> Choose a product to reveal its production flow.</div>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wide text-indigo-500">Product</div>
+                  <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Product</div>
                   <div className="text-xl font-bold text-slate-800">{sku.name}</div>
                   <div className="mt-0.5 text-xs text-slate-500">{sku.group}</div>
                 </div>
-                <div className="rounded-lg bg-white px-3 py-2 text-xs text-slate-600 border border-indigo-100">{path.length} production steps</div>
+                <div className="rounded-lg bg-white px-3 py-2 text-xs text-slate-600 border border-slate-200">{path.length} production steps</div>
               </div>
             )}
           </div>
@@ -444,26 +445,26 @@ function DentureApp() {
 }
 
 /* ============================================================
-   CROWN & BRIDGE APP
+   CROWN & BRIDGE VIEW
    ============================================================ */
 function LayerPicker({ n, title, options, value, onPick, enabled, validValues }) {
   return (
     <div className={`rounded-xl border p-3 transition-all ${enabled?"border-slate-200 bg-white":"border-slate-100 bg-slate-50 opacity-60"}`}>
       <div className="mb-2 flex items-center gap-2">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: value?"#4f46e5":"#e2e8f0", color: value?"#fff":"#64748b" }}>{value?<Check className="h-3 w-3" />:n}</span>
+        <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: value?"#0f172a":"#e2e8f0", color: value?"#fff":"#64748b" }}>{value?<Check className="h-3 w-3" />:n}</span>
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</span>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {options.map(o => { const ok=!validValues||validValues.has(o); const on=value===o; return (
           <button key={o} disabled={!enabled||!ok} onClick={() => onPick(o)} className="rounded-lg px-3 py-1.5 text-xs font-medium transition-all disabled:cursor-not-allowed"
-            style={{ background:on?"#4f46e5":(enabled&&ok?"#f1f5f9":"#f8fafc"), color:on?"#fff":(enabled&&ok?"#334155":"#cbd5e1"), border:`1px solid ${on?"#4f46e5":"#e2e8f0"}`, textDecoration:(!ok&&enabled)?"line-through":"none" }}>{o}</button>
+            style={{ background:on?"#0f172a":(enabled&&ok?"#f1f5f9":"#f8fafc"), color:on?"#fff":(enabled&&ok?"#334155":"#cbd5e1"), border:`1px solid ${on?"#0f172a":"#e2e8f0"}`, textDecoration:(!ok&&enabled)?"line-through":"none" }}>{o}</button>
         );})}
       </div>
     </div>
   );
 }
 
-function CrownBridgeApp() {
+function CrownBridgeView() {
   const [receipt, setReceipt] = useState(null);
   const [cat, setCat] = useState(null);
   const [mat, setMat] = useState(null);
@@ -492,18 +493,18 @@ function CrownBridgeApp() {
         <LayerPicker n={4} title="4 · Finishing style" options={CB_L4} value={fin} onPick={setFin} enabled={!!mat} validValues={validFin} />
       </div>
 
-      <div className="mt-4 rounded-xl border p-4" style={{ borderColor: sku?"#a5b4fc":"#e2e8f0", background: sku?"#eef2ff":"#fff" }}>
+      <div className="mt-4 rounded-xl border p-4" style={{ borderColor: sku?"#cbd5e1":"#e2e8f0", background: sku?"#f8fafc":"#fff" }}>
         {!receipt||!cat||!mat||!fin ? (
           <div className="flex items-center gap-2 text-sm text-slate-500"><ChevronDown className="h-4 w-4" /> Answer all four questions to reveal the product and its flow.</div>
         ) : sku ? (
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-wide text-indigo-500">Product SKU</div>
+              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Product SKU</div>
               <div className="text-xl font-bold text-slate-800">{sku.name}</div>
               <div className="mt-0.5 text-xs text-slate-500">{receipt} · {cat} · {mat} · {fin}</div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-white px-3 py-2 text-xs text-slate-600 border border-indigo-100">{path.length} production steps</div>
+              <div className="rounded-lg bg-white px-3 py-2 text-xs text-slate-600 border border-slate-200">{path.length} production steps</div>
               <button onClick={reset} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"><RotateCcw className="h-3.5 w-3.5" /> Reset</button>
             </div>
           </div>
@@ -520,34 +521,130 @@ function CrownBridgeApp() {
 }
 
 /* ============================================================
-   ROOT: product-type switcher
+   WORKFLOWS PAGE (tabs: C&B / Dentures)
    ============================================================ */
+function WorkflowsPage() {
+  const [tab, setTab] = useState("cb");
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Workflows</div>
+      <h1 className="mt-1 text-2xl font-bold text-slate-800">Production workflows</h1>
+      <p className="mt-1 text-sm text-slate-500">Explore the decision tree and step-by-step production flow for each product line.</p>
+
+      {/* tabs */}
+      <div className="mt-5 flex gap-1 border-b border-slate-200">
+        {[["cb","Crown & Bridge"],["dentures","Dentures"]].map(([k,label]) => (
+          <button key={k} onClick={() => setTab(k)} className="relative px-4 py-2.5 text-sm font-semibold transition-colors"
+            style={{ color: tab===k?"#0f172a":"#94a3b8" }}>
+            {label}
+            {tab===k && <span className="absolute inset-x-0 -bottom-px h-0.5 bg-slate-900" />}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-5">
+        {tab === "cb" ? <CrownBridgeView /> : <DentureView />}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   PLACEHOLDER PAGE
+   ============================================================ */
+function PlaceholderPage({ title }) {
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Admin</div>
+      <h1 className="mt-1 text-2xl font-bold text-slate-800">{title}</h1>
+      <div className="mt-5 rounded-xl border border-slate-200 bg-white p-6">
+        <p className="text-sm text-slate-500">This section is a placeholder. Content for <span className="font-medium text-slate-700">{title}</span> can be added here.</p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ROOT: admin shell with left sidebar
+   ============================================================ */
+const NAV = [
+  { id:"overview",     label:"Overview",     icon:LayoutGrid },
+  { id:"workflows",    label:"Workflows",    icon:Workflow },
+  { id:"products",     label:"Products",     icon:Package },
+  { id:"order-forms",  label:"Order forms",  icon:ClipboardList },
+  { id:"organizations",label:"Organizations",icon:Building2 },
+  { id:"users",        label:"Users",        icon:Users },
+  { id:"cases",        label:"Cases",        icon:FolderOpen },
+];
+
+function Overview({ onGoWorkflows }) {
+  const stats = [
+    { label:"Product lines", value:"2", sub:"Crown & Bridge, Dentures" },
+    { label:"Workflows mapped", value:"23", sub:"Across both lines" },
+    { label:"Departments", value:"12", sub:"Color-coded" },
+    { label:"Production steps", value:"50+", sub:"Documented" },
+  ];
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Admin</div>
+      <h1 className="mt-1 text-2xl font-bold text-slate-800">System overview</h1>
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map(s => (
+          <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="text-sm text-slate-500">{s.label}</div>
+            <div className="mt-1 text-3xl font-bold text-slate-800">{s.value}</div>
+            <div className="mt-1 text-xs text-slate-400">{s.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+        <h3 className="text-base font-bold text-slate-800">Operations</h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Explore production workflows from the sidebar. Open{" "}
+          <button onClick={onGoWorkflows} className="font-semibold text-slate-700 underline underline-offset-2">Workflows</button>{" "}
+          to view the Crown & Bridge and Denture decision trees and step-by-step flows.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const [productType, setProductType] = useState("dentures");
+  const [active, setActive] = useState("workflows");
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 text-slate-900" style={{ fontFamily:"ui-sans-serif, system-ui, sans-serif" }}>
-      <div className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-5xl px-5 py-4">
-          <div className="flex items-center gap-2">
-            <Layers className="h-5 w-5 text-indigo-600" />
-            <h1 className="text-lg font-bold tracking-tight">Dental Lab — Production Flow Reference</h1>
-          </div>
-          <p className="mt-0.5 text-xs text-slate-500">Pick a product type, then explore its decision tree and step-by-step production flow.</p>
-          <div className="mt-3 flex gap-1.5">
-            {[["dentures","Dentures"],["cb","Crown & Bridge"]].map(([k,label]) => (
-              <button key={k} onClick={() => setProductType(k)} className="rounded-lg px-4 py-1.5 text-sm font-semibold transition-all"
-                style={{ background: productType===k?"#0f172a":"#fff", color: productType===k?"#fff":"#475569", border:`1px solid ${productType===k?"#0f172a":"#e2e8f0"}` }}>
-                {label}
+    <div className="flex min-h-screen w-full bg-slate-50 text-slate-900" style={{ fontFamily:"ui-sans-serif, system-ui, sans-serif" }}>
+      {/* Sidebar */}
+      <aside className="w-56 shrink-0 border-r border-slate-200 bg-white">
+        <div className="px-4 pt-5 pb-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Admin</div>
+        <nav className="px-2">
+          {NAV.map(item => {
+            const Icon = item.icon;
+            const on = active === item.id;
+            return (
+              <button key={item.id} onClick={() => setActive(item.id)}
+                className="mb-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                style={{ background: on?"#eff6ff":"transparent", color: on?"#0f172a":"#475569" }}>
+                <Icon className="h-4 w-4" style={{ color: on?"#2563eb":"#94a3b8" }} />
+                {item.label}
               </button>
-            ))}
-          </div>
-        </div>
-      </div>
+            );
+          })}
+        </nav>
+      </aside>
 
-      <div className="mx-auto max-w-5xl px-5 py-5">
-        {productType === "dentures" ? <DentureApp /> : <CrownBridgeApp />}
-      </div>
+      {/* Main content */}
+      <main className="flex-1 overflow-x-auto px-8 py-7">
+        <div className="mx-auto max-w-5xl">
+          {active === "overview" && <Overview onGoWorkflows={() => setActive("workflows")} />}
+          {active === "workflows" && <WorkflowsPage />}
+          {active === "products" && <PlaceholderPage title="Products" />}
+          {active === "order-forms" && <PlaceholderPage title="Order forms" />}
+          {active === "organizations" && <PlaceholderPage title="Organizations" />}
+          {active === "users" && <PlaceholderPage title="Users" />}
+          {active === "cases" && <PlaceholderPage title="Cases" />}
+        </div>
+      </main>
     </div>
   );
 }
