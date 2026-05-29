@@ -749,11 +749,11 @@ function LocationBar({ locations, activeLoc, setActiveLoc, addLocation, view, se
   );
 }
 
-function PctInput({ value, onChange }) {
+function PctInput({ value, onChange, max=100 }) {
   return (
     <div className="relative w-20">
-      <input type="number" min="0" max="100" value={value===undefined||value===null?"":value}
-        onChange={e=>onChange(e.target.value===""?"":Math.max(0,Math.min(100,Number(e.target.value))))}
+      <input type="number" min="0" max={max} value={value===undefined||value===null?"":value}
+        onChange={e=>onChange(e.target.value===""?"":Math.max(0,Math.min(max,Number(e.target.value))))}
         className="w-full rounded-lg border border-slate-300 px-2 py-1 pr-5 text-right text-sm outline-none focus:border-slate-500" />
       <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
     </div>
@@ -837,18 +837,22 @@ function ProductMatrixPage() {
             className="mt-1.5 w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50 p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-800">Category mix <span className="font-normal text-slate-400">— share of total volume</span></h3>
+            <h3 className="text-sm font-bold text-indigo-900">Category mix <span className="font-normal text-indigo-400">— share of total volume</span></h3>
             <TotalBadge total={catTotal()} />
           </div>
           <div className="space-y-2">
-            {PRODUCT_MATRIX.map(c => (
-              <div key={c.id} className="flex items-center justify-between gap-3 border-b border-slate-100 py-1.5 last:border-0">
-                <span className="text-sm text-slate-700">{c.label}</span>
-                <PctInput value={form[c.id]} onChange={v=>setVal(c.id,v)} />
-              </div>
-            ))}
+            {PRODUCT_MATRIX.map(c => {
+              const cur = Number(form[c.id])||0;
+              const headroom = 100 - (catTotal() - cur);
+              return (
+                <div key={c.id} className="flex items-center justify-between gap-3 border-b border-indigo-100 py-1.5 last:border-0">
+                  <span className="text-sm text-indigo-900">{c.label}</span>
+                  <PctInput value={form[c.id]} onChange={v=>setVal(c.id,v)} max={headroom} />
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -859,12 +863,17 @@ function ProductMatrixPage() {
               <TotalBadge total={subTotal(c)} />
             </div>
             <div className="space-y-2">
-              {c.subs.map(sub => (
-                <div key={sub.id} className="flex items-center justify-between gap-3 border-b border-slate-100 py-1.5 last:border-0">
-                  <span className="text-sm text-slate-700">{sub.label}</span>
-                  <PctInput value={form[`sub:${c.id}:${sub.id}`]} onChange={v=>setVal(`sub:${c.id}:${sub.id}`,v)} />
-                </div>
-              ))}
+              {c.subs.map(sub => {
+                const key = `sub:${c.id}:${sub.id}`;
+                const cur = Number(form[key])||0;
+                const headroom = 100 - (subTotal(c) - cur);
+                return (
+                  <div key={sub.id} className="flex items-center justify-between gap-3 border-b border-slate-100 py-1.5 last:border-0">
+                    <span className="text-sm text-slate-700">{sub.label}</span>
+                    <PctInput value={form[key]} onChange={v=>setVal(key,v)} max={headroom} />
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -1028,7 +1037,6 @@ function PlaceholderPage({ title }) {
    ============================================================ */
 const NAV = [
   { id:"workflows",      label:"Workflows",      icon:Workflow },
-  { id:"products",       label:"Products",       icon:Package },
   { id:"product-matrix", label:"Product Matrix", icon:LayoutGrid },
   { id:"design-matrix",  label:"Design Matrix",  icon:ClipboardList },
 ];
@@ -1060,7 +1068,6 @@ export default function App() {
       <main className="flex-1 overflow-x-auto px-8 py-7">
         <div className="mx-auto max-w-5xl">
           {active === "workflows" && <WorkflowsPage />}
-          {active === "products" && <PlaceholderPage title="Products" />}
           {active === "product-matrix" && <ProductMatrixPage />}
           {active === "design-matrix" && <DesignMatrixPage />}
         </div>
