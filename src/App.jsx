@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useLayoutEffect } from "react";
 import { X, Info, RotateCcw, Check, ChevronDown, Truck, Repeat, Calendar, ArrowRight,
-  LayoutGrid, Workflow, Package, ClipboardList, Building2, Users, FolderOpen } from "lucide-react";
+  LayoutGrid, Workflow, Package, ClipboardList, Building2, Users, FolderOpen, MapPin, Plus } from "lucide-react";
 
 /* ============================================================
    SHARED: department styling
@@ -667,6 +667,320 @@ function WorkflowsPage() {
 }
 
 /* ============================================================
+   MATRIX DEFINITIONS
+   ============================================================ */
+const PRODUCT_MATRIX = [
+  { id:"cb", label:"Crown & Bridge / Implant Crowns", subs:[
+    {id:"fcz",label:"Full Contour Zirconia"},
+    {id:"pfz",label:"PFZ"},
+    {id:"ld",label:"Lithium Disilicate"},
+    {id:"pfm",label:"PFM"},
+    {id:"metal",label:"Metal Crown"},
+  ]},
+  { id:"dent", label:"Dentures", subs:[
+    {id:"acrylic",label:"Acrylic Denture"},
+    {id:"valplast",label:"Valplast Denture"},
+    {id:"framework",label:"Metal Framework"},
+    {id:"printed",label:"Printed Denture"},
+  ]},
+  { id:"guides", label:"Guides / Removables", subs:[
+    {id:"nightguard",label:"Nightguard"},
+    {id:"retainer",label:"Retainer"},
+    {id:"aligner",label:"Aligner"},
+    {id:"surgical",label:"Surgical Guides"},
+  ]},
+  { id:"aox", label:"All on X", subs:[
+    {id:"pmma",label:"PMMA Provisionals"},
+    {id:"zir",label:"Zirconia Finals"},
+  ]},
+];
+
+const DESIGN_CATEGORIES = [
+  {id:"post-crown",label:"Posterior Crown"},
+  {id:"ant-crown",label:"Anterior Crown"},
+  {id:"bridge",label:"Bridge"},
+  {id:"denture",label:"Denture"},
+  {id:"abutment",label:"Custom Abutment"},
+  {id:"implant-crown",label:"Implant Crown"},
+  {id:"surgical-guide",label:"Surgical Guide"},
+];
+
+/* ============================================================
+   SHARED: location bar
+   ============================================================ */
+function LocationBar({ locations, activeLoc, setActiveLoc, addLocation, view, setView }) {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const submit = () => { if (name.trim()) { addLocation(name.trim()); setName(""); setAdding(false); } };
+  return (
+    <div className="mb-5 rounded-xl border border-slate-200 bg-white p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <MapPin className="h-3.5 w-3.5" /> Location
+        </span>
+        {locations.map(l => { const on = activeLoc===l.id && view==="form"; return (
+          <button key={l.id} onClick={() => { setActiveLoc(l.id); setView("form"); }}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium transition-all"
+            style={{ background:on?"#0f172a":"#f1f5f9", color:on?"#fff":"#334155", border:`1px solid ${on?"#0f172a":"#e2e8f0"}` }}>
+            {l.name}
+          </button>
+        );})}
+        {adding ? (
+          <span className="flex items-center gap-1">
+            <input autoFocus value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}
+              placeholder="Location name" className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs outline-none focus:border-slate-500" />
+            <button onClick={submit} className="rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white">Add</button>
+            <button onClick={()=>{setAdding(false);setName("");}} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X className="h-3.5 w-3.5" /></button>
+          </span>
+        ) : (
+          <button onClick={()=>setAdding(true)} className="flex items-center gap-1 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50">
+            <Plus className="h-3.5 w-3.5" /> Add location
+          </button>
+        )}
+        {locations.length > 0 && (
+          <button onClick={()=>setView("rollup")}
+            className="ml-auto rounded-lg px-3 py-1.5 text-xs font-medium transition-all"
+            style={{ background:view==="rollup"?"#0f172a":"#f1f5f9", color:view==="rollup"?"#fff":"#334155", border:`1px solid ${view==="rollup"?"#0f172a":"#e2e8f0"}` }}>
+            Holistic view
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PctInput({ value, onChange }) {
+  return (
+    <div className="relative w-20">
+      <input type="number" min="0" max="100" value={value===undefined||value===null?"":value}
+        onChange={e=>onChange(e.target.value===""?"":Math.max(0,Math.min(100,Number(e.target.value))))}
+        className="w-full rounded-lg border border-slate-300 px-2 py-1 pr-5 text-right text-sm outline-none focus:border-slate-500" />
+      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
+    </div>
+  );
+}
+
+function TotalBadge({ total }) {
+  const ok = total === 100;
+  const empty = total === 0;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold"
+      style={{ background: empty?"#f1f5f9":(ok?"#dcfce7":"#fee2e2"), color: empty?"#94a3b8":(ok?"#15803d":"#b91c1c") }}>
+      {ok && <Check className="h-3 w-3" />} {total}%
+    </span>
+  );
+}
+
+/* ============================================================
+   PRODUCT MATRIX PAGE
+   ============================================================ */
+function ProductMatrixPage() {
+  const [locations, setLocations] = useState([]);
+  const [activeLoc, setActiveLoc] = useState(null);
+  const [view, setView] = useState("form");
+  const [data, setData] = useState({}); // { locId: { catId: pct, "cat:catId:subId": pct } }
+
+  const addLocation = (name) => {
+    const id = "loc_" + Date.now();
+    setLocations(p => [...p, { id, name }]);
+    setActiveLoc(id); setView("form");
+    setData(d => ({ ...d, [id]: {} }));
+  };
+  const setVal = (locId, key, val) => setData(d => ({ ...d, [locId]: { ...d[locId], [key]: val } }));
+
+  const catTotal = (locId) => PRODUCT_MATRIX.reduce((s,c)=>s+(Number(data[locId]?.[c.id])||0),0);
+  const subTotal = (locId, cat) => cat.subs.reduce((s,sub)=>s+(Number(data[locId]?.[`sub:${cat.id}:${sub.id}`])||0),0);
+
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Admin</div>
+      <h1 className="mt-1 text-2xl font-bold text-slate-800">Product Matrix</h1>
+      <p className="mt-1 text-sm text-slate-500">For each location, enter the product mix. Categories must total 100%, and the subcategories within each category must also total 100%.</p>
+
+      <div className="mt-5">
+        <LocationBar locations={locations} activeLoc={activeLoc} setActiveLoc={setActiveLoc} addLocation={addLocation} view={view} setView={setView} />
+      </div>
+
+      {locations.length === 0 && (
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+          <MapPin className="mx-auto h-6 w-6 text-slate-300" />
+          <p className="mt-2 text-sm text-slate-500">Add a location above to begin entering its product mix.</p>
+        </div>
+      )}
+
+      {view==="form" && activeLoc && (
+        <div className="space-y-5">
+          {/* Category-level mix */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800">Category mix <span className="font-normal text-slate-400">— share of total volume</span></h3>
+              <TotalBadge total={catTotal(activeLoc)} />
+            </div>
+            <div className="space-y-2">
+              {PRODUCT_MATRIX.map(c => (
+                <div key={c.id} className="flex items-center justify-between gap-3 border-b border-slate-100 py-1.5 last:border-0">
+                  <span className="text-sm text-slate-700">{c.label}</span>
+                  <PctInput value={data[activeLoc]?.[c.id]} onChange={v=>setVal(activeLoc,c.id,v)} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Subcategory mix per category */}
+          {PRODUCT_MATRIX.map(c => (
+            <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-800">{c.label} <span className="font-normal text-slate-400">— mix within category</span></h3>
+                <TotalBadge total={subTotal(activeLoc,c)} />
+              </div>
+              <div className="space-y-2">
+                {c.subs.map(sub => (
+                  <div key={sub.id} className="flex items-center justify-between gap-3 border-b border-slate-100 py-1.5 last:border-0">
+                    <span className="text-sm text-slate-700">{sub.label}</span>
+                    <PctInput value={data[activeLoc]?.[`sub:${c.id}:${sub.id}`]} onChange={v=>setVal(activeLoc,`sub:${c.id}:${sub.id}`,v)} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {view==="rollup" && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 text-sm font-bold text-slate-800">Category mix by location</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
+                  <th className="py-2 pr-4 font-semibold">Category</th>
+                  {locations.map(l => <th key={l.id} className="px-3 py-2 text-right font-semibold">{l.name}</th>)}
+                  <th className="px-3 py-2 text-right font-semibold text-slate-600">Average</th>
+                </tr>
+              </thead>
+              <tbody>
+                {PRODUCT_MATRIX.map(c => {
+                  const vals = locations.map(l => Number(data[l.id]?.[c.id])||0);
+                  const avg = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
+                  return (
+                    <tr key={c.id} className="border-b border-slate-100">
+                      <td className="py-2 pr-4 text-slate-700">{c.label}</td>
+                      {vals.map((v,i)=><td key={i} className="px-3 py-2 text-right text-slate-600">{v}%</td>)}
+                      <td className="px-3 py-2 text-right font-semibold text-slate-800">{avg}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   DESIGN MATRIX PAGE
+   ============================================================ */
+function DesignMatrixPage() {
+  const [locations, setLocations] = useState([]);
+  const [activeLoc, setActiveLoc] = useState(null);
+  const [view, setView] = useState("form");
+  const [data, setData] = useState({}); // { locId: { designers:int, "cat:catId": "in_house"|"outsource" } }
+
+  const addLocation = (name) => {
+    const id = "loc_" + Date.now();
+    setLocations(p => [...p, { id, name }]);
+    setActiveLoc(id); setView("form");
+    setData(d => ({ ...d, [id]: { designers:"" } }));
+  };
+  const setVal = (locId, key, val) => setData(d => ({ ...d, [locId]: { ...d[locId], [key]: val } }));
+
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Admin</div>
+      <h1 className="mt-1 text-2xl font-bold text-slate-800">Design Matrix</h1>
+      <p className="mt-1 text-sm text-slate-500">For each location, record whether each design type is done in-house or outsourced, plus the number of in-house designers.</p>
+
+      <div className="mt-5">
+        <LocationBar locations={locations} activeLoc={activeLoc} setActiveLoc={setActiveLoc} addLocation={addLocation} view={view} setView={setView} />
+      </div>
+
+      {locations.length === 0 && (
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+          <MapPin className="mx-auto h-6 w-6 text-slate-300" />
+          <p className="mt-2 text-sm text-slate-500">Add a location above to begin recording its design setup.</p>
+        </div>
+      )}
+
+      {view==="form" && activeLoc && (
+        <div className="space-y-5">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-semibold text-slate-700">Number of in-house designers</span>
+              <input type="number" min="0" value={data[activeLoc]?.designers ?? ""} onChange={e=>setVal(activeLoc,"designers",e.target.value===""?"":Math.max(0,Number(e.target.value)))}
+                className="w-24 rounded-lg border border-slate-300 px-2.5 py-1.5 text-right text-sm outline-none focus:border-slate-500" />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <h3 className="mb-3 text-sm font-bold text-slate-800">Design by category</h3>
+            <div className="space-y-2">
+              {DESIGN_CATEGORIES.map(c => {
+                const v = data[activeLoc]?.[`cat:${c.id}`];
+                return (
+                  <div key={c.id} className="flex items-center justify-between gap-3 border-b border-slate-100 py-2 last:border-0">
+                    <span className="text-sm text-slate-700">{c.label}</span>
+                    <div className="flex gap-1">
+                      {[["in_house","In-House"],["outsource","Outsource"]].map(([val,label]) => { const on=v===val; return (
+                        <button key={val} onClick={()=>setVal(activeLoc,`cat:${c.id}`,val)} className="rounded-lg px-3 py-1 text-xs font-medium transition-all"
+                          style={{ background:on?"#0f172a":"#f1f5f9", color:on?"#fff":"#334155", border:`1px solid ${on?"#0f172a":"#e2e8f0"}` }}>{label}</button>
+                      );})}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {view==="rollup" && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 text-sm font-bold text-slate-800">Design setup by location</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
+                  <th className="py-2 pr-4 font-semibold">Design type</th>
+                  {locations.map(l => <th key={l.id} className="px-3 py-2 text-center font-semibold">{l.name}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-slate-100">
+                  <td className="py-2 pr-4 font-medium text-slate-700">In-house designers</td>
+                  {locations.map(l => <td key={l.id} className="px-3 py-2 text-center text-slate-600">{data[l.id]?.designers || "—"}</td>)}
+                </tr>
+                {DESIGN_CATEGORIES.map(c => (
+                  <tr key={c.id} className="border-b border-slate-100">
+                    <td className="py-2 pr-4 text-slate-700">{c.label}</td>
+                    {locations.map(l => { const v=data[l.id]?.[`cat:${c.id}`]; return (
+                      <td key={l.id} className="px-3 py-2 text-center">
+                        {v ? <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background:v==="in_house"?"#dcfce7":"#ffedd5", color:v==="in_house"?"#15803d":"#c2410c" }}>{v==="in_house"?"In-House":"Outsource"}</span> : <span className="text-slate-300">—</span>}
+                      </td>
+                    );})}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
    PLACEHOLDER PAGE
    ============================================================ */
 function PlaceholderPage({ title }) {
@@ -719,8 +1033,8 @@ export default function App() {
         <div className="mx-auto max-w-5xl">
           {active === "workflows" && <WorkflowsPage />}
           {active === "products" && <PlaceholderPage title="Products" />}
-          {active === "product-matrix" && <PlaceholderPage title="Product Matrix" />}
-          {active === "design-matrix" && <PlaceholderPage title="Design Matrix" />}
+          {active === "product-matrix" && <ProductMatrixPage />}
+          {active === "design-matrix" && <DesignMatrixPage />}
         </div>
       </main>
     </div>
