@@ -775,80 +775,33 @@ function TotalBadge({ total }) {
    PRODUCT MATRIX PAGE
    ============================================================ */
 function ProductMatrixPage() {
-  const [locations, setLocations] = useState([]);
-  const [activeLoc, setActiveLoc] = useState(null);
-  const [view, setView] = useState("form");
-  const [data, setData] = useState({}); // { locId: { catId: pct, "cat:catId:subId": pct } }
+  const [locations, setLocations] = useState([]); // [{id,name,vals:{}}]
+  const [siteName, setSiteName] = useState("");
+  const [form, setForm] = useState({}); // working form values
 
-  const addLocation = (name) => {
-    const id = "loc_" + Date.now();
-    setLocations(p => [...p, { id, name }]);
-    setActiveLoc(id); setView("form");
-    setData(d => ({ ...d, [id]: {} }));
+  const catTotal = () => PRODUCT_MATRIX.reduce((s,c)=>s+(Number(form[c.id])||0),0);
+  const subTotal = (cat) => cat.subs.reduce((s,sub)=>s+(Number(form[`sub:${cat.id}:${sub.id}`])||0),0);
+  const setVal = (key,val) => setForm(f=>({ ...f, [key]: val }));
+
+  const canSubmit = siteName.trim().length > 0;
+  const submit = () => {
+    if (!canSubmit) return;
+    setLocations(p => [...p, { id:"loc_"+Date.now(), name:siteName.trim(), vals:form }]);
+    setSiteName(""); setForm({});
   };
-  const setVal = (locId, key, val) => setData(d => ({ ...d, [locId]: { ...d[locId], [key]: val } }));
-
-  const catTotal = (locId) => PRODUCT_MATRIX.reduce((s,c)=>s+(Number(data[locId]?.[c.id])||0),0);
-  const subTotal = (locId, cat) => cat.subs.reduce((s,sub)=>s+(Number(data[locId]?.[`sub:${cat.id}:${sub.id}`])||0),0);
 
   return (
     <div>
       <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Admin</div>
       <h1 className="mt-1 text-2xl font-bold text-slate-800">Product Matrix</h1>
-      <p className="mt-1 text-sm text-slate-500">For each location, enter the product mix. Categories must total 100%, and the subcategories within each category must also total 100%.</p>
+      <p className="mt-1 text-sm text-slate-500">Enter the product mix for each site. Categories total 100%, and the subcategories within each category also total 100%.</p>
 
-      <div className="mt-5">
-        <LocationBar locations={locations} activeLoc={activeLoc} setActiveLoc={setActiveLoc} addLocation={addLocation} view={view} setView={setView} />
-      </div>
-
-      {locations.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-          <MapPin className="mx-auto h-6 w-6 text-slate-300" />
-          <p className="mt-2 text-sm text-slate-500">Add a location above to begin entering its product mix.</p>
-        </div>
-      )}
-
-      {view==="form" && activeLoc && (
-        <div className="space-y-5">
-          {/* Category-level mix */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800">Category mix <span className="font-normal text-slate-400">— share of total volume</span></h3>
-              <TotalBadge total={catTotal(activeLoc)} />
-            </div>
-            <div className="space-y-2">
-              {PRODUCT_MATRIX.map(c => (
-                <div key={c.id} className="flex items-center justify-between gap-3 border-b border-slate-100 py-1.5 last:border-0">
-                  <span className="text-sm text-slate-700">{c.label}</span>
-                  <PctInput value={data[activeLoc]?.[c.id]} onChange={v=>setVal(activeLoc,c.id,v)} />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Subcategory mix per category */}
-          {PRODUCT_MATRIX.map(c => (
-            <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-800">{c.label} <span className="font-normal text-slate-400">— mix within category</span></h3>
-                <TotalBadge total={subTotal(activeLoc,c)} />
-              </div>
-              <div className="space-y-2">
-                {c.subs.map(sub => (
-                  <div key={sub.id} className="flex items-center justify-between gap-3 border-b border-slate-100 py-1.5 last:border-0">
-                    <span className="text-sm text-slate-700">{sub.label}</span>
-                    <PctInput value={data[activeLoc]?.[`sub:${c.id}:${sub.id}`]} onChange={v=>setVal(activeLoc,`sub:${c.id}:${sub.id}`,v)} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {view==="rollup" && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-3 text-sm font-bold text-slate-800">Category mix by location</h3>
+      {/* TABLE (always visible, on top) */}
+      <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+        <h3 className="mb-3 text-sm font-bold text-slate-800">Category mix by site</h3>
+        {locations.length === 0 ? (
+          <p className="text-sm text-slate-400">No sites yet. Complete the form below to add your first site.</p>
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -860,7 +813,7 @@ function ProductMatrixPage() {
               </thead>
               <tbody>
                 {PRODUCT_MATRIX.map(c => {
-                  const vals = locations.map(l => Number(data[l.id]?.[c.id])||0);
+                  const vals = locations.map(l => Number(l.vals?.[c.id])||0);
                   const avg = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
                   return (
                     <tr key={c.id} className="border-b border-slate-100">
@@ -873,8 +826,58 @@ function ProductMatrixPage() {
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      {/* FORM (below) */}
+      <div className="mt-5 space-y-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <label className="text-sm font-semibold text-slate-700">Site name <span className="text-rose-500">*</span></label>
+          <input value={siteName} onChange={e=>setSiteName(e.target.value)} placeholder="e.g. Main Lab"
+            className="mt-1.5 w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
         </div>
-      )}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-800">Category mix <span className="font-normal text-slate-400">— share of total volume</span></h3>
+            <TotalBadge total={catTotal()} />
+          </div>
+          <div className="space-y-2">
+            {PRODUCT_MATRIX.map(c => (
+              <div key={c.id} className="flex items-center justify-between gap-3 border-b border-slate-100 py-1.5 last:border-0">
+                <span className="text-sm text-slate-700">{c.label}</span>
+                <PctInput value={form[c.id]} onChange={v=>setVal(c.id,v)} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {PRODUCT_MATRIX.map(c => (
+          <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800">{c.label} <span className="font-normal text-slate-400">— mix within category</span></h3>
+              <TotalBadge total={subTotal(c)} />
+            </div>
+            <div className="space-y-2">
+              {c.subs.map(sub => (
+                <div key={sub.id} className="flex items-center justify-between gap-3 border-b border-slate-100 py-1.5 last:border-0">
+                  <span className="text-sm text-slate-700">{sub.label}</span>
+                  <PctInput value={form[`sub:${c.id}:${sub.id}`]} onChange={v=>setVal(`sub:${c.id}:${sub.id}`,v)} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <div className="flex items-center gap-3">
+          <button onClick={submit} disabled={!canSubmit}
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed"
+            style={{ background: canSubmit?"#0f172a":"#cbd5e1" }}>
+            Submit site
+          </button>
+          {!canSubmit && <span className="text-xs text-slate-400">Enter a site name to submit.</span>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -883,90 +886,55 @@ function ProductMatrixPage() {
    DESIGN MATRIX PAGE
    ============================================================ */
 function DesignMatrixPage() {
-  const [locations, setLocations] = useState([]);
-  const [activeLoc, setActiveLoc] = useState(null);
-  const [view, setView] = useState("form");
-  const [data, setData] = useState({}); // { locId: { designers:int, "cat:catId": "in_house"|"outsource" } }
+  const [locations, setLocations] = useState([]); // [{id,name,cats:{catId:{mode,designers,partner}}}]
+  const [siteName, setSiteName] = useState("");
+  const [cats, setCats] = useState({}); // { catId: { mode, designers, partner } }
 
-  const addLocation = (name) => {
-    const id = "loc_" + Date.now();
-    setLocations(p => [...p, { id, name }]);
-    setActiveLoc(id); setView("form");
-    setData(d => ({ ...d, [id]: { designers:"" } }));
+  const setCat = (catId, patch) => setCats(c => ({ ...c, [catId]: { ...c[catId], ...patch } }));
+
+  const canSubmit = siteName.trim().length > 0;
+  const submit = () => {
+    if (!canSubmit) return;
+    setLocations(p => [...p, { id:"loc_"+Date.now(), name:siteName.trim(), cats }]);
+    setSiteName(""); setCats({});
   };
-  const setVal = (locId, key, val) => setData(d => ({ ...d, [locId]: { ...d[locId], [key]: val } }));
+
+  const modeChip = (mode) => {
+    if (!mode) return <span className="text-slate-300">—</span>;
+    const map = { in_house:["In-House","#dcfce7","#15803d"], outsource:["Outsource","#ffedd5","#c2410c"], both:["Both","#e0e7ff","#4338ca"] };
+    const [label,bg,fg] = map[mode];
+    return <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background:bg, color:fg }}>{label}</span>;
+  };
 
   return (
     <div>
       <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Admin</div>
       <h1 className="mt-1 text-2xl font-bold text-slate-800">Design Matrix</h1>
-      <p className="mt-1 text-sm text-slate-500">For each location, record whether each design type is done in-house or outsourced, plus the number of in-house designers.</p>
+      <p className="mt-1 text-sm text-slate-500">For each site and design category, record whether it's done in-house, outsourced, or both — with designer count and/or outsource partner as applicable.</p>
 
-      <div className="mt-5">
-        <LocationBar locations={locations} activeLoc={activeLoc} setActiveLoc={setActiveLoc} addLocation={addLocation} view={view} setView={setView} />
-      </div>
-
-      {locations.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-          <MapPin className="mx-auto h-6 w-6 text-slate-300" />
-          <p className="mt-2 text-sm text-slate-500">Add a location above to begin recording its design setup.</p>
-        </div>
-      )}
-
-      {view==="form" && activeLoc && (
-        <div className="space-y-5">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold text-slate-700">Number of in-house designers</span>
-              <input type="number" min="0" value={data[activeLoc]?.designers ?? ""} onChange={e=>setVal(activeLoc,"designers",e.target.value===""?"":Math.max(0,Number(e.target.value)))}
-                className="w-24 rounded-lg border border-slate-300 px-2.5 py-1.5 text-right text-sm outline-none focus:border-slate-500" />
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h3 className="mb-3 text-sm font-bold text-slate-800">Design by category</h3>
-            <div className="space-y-2">
-              {DESIGN_CATEGORIES.map(c => {
-                const v = data[activeLoc]?.[`cat:${c.id}`];
-                return (
-                  <div key={c.id} className="flex items-center justify-between gap-3 border-b border-slate-100 py-2 last:border-0">
-                    <span className="text-sm text-slate-700">{c.label}</span>
-                    <div className="flex gap-1">
-                      {[["in_house","In-House"],["outsource","Outsource"]].map(([val,label]) => { const on=v===val; return (
-                        <button key={val} onClick={()=>setVal(activeLoc,`cat:${c.id}`,val)} className="rounded-lg px-3 py-1 text-xs font-medium transition-all"
-                          style={{ background:on?"#0f172a":"#f1f5f9", color:on?"#fff":"#334155", border:`1px solid ${on?"#0f172a":"#e2e8f0"}` }}>{label}</button>
-                      );})}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {view==="rollup" && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-3 text-sm font-bold text-slate-800">Design setup by location</h3>
+      {/* TABLE (always visible, on top) */}
+      <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+        <h3 className="mb-3 text-sm font-bold text-slate-800">Design setup by site</h3>
+        {locations.length === 0 ? (
+          <p className="text-sm text-slate-400">No sites yet. Complete the form below to add your first site.</p>
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
-                  <th className="py-2 pr-4 font-semibold">Design type</th>
-                  {locations.map(l => <th key={l.id} className="px-3 py-2 text-center font-semibold">{l.name}</th>)}
+                  <th className="py-2 pr-4 font-semibold">Design category</th>
+                  {locations.map(l => <th key={l.id} className="px-3 py-2 text-left font-semibold">{l.name}</th>)}
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-slate-100">
-                  <td className="py-2 pr-4 font-medium text-slate-700">In-house designers</td>
-                  {locations.map(l => <td key={l.id} className="px-3 py-2 text-center text-slate-600">{data[l.id]?.designers || "—"}</td>)}
-                </tr>
                 {DESIGN_CATEGORIES.map(c => (
-                  <tr key={c.id} className="border-b border-slate-100">
+                  <tr key={c.id} className="border-b border-slate-100 align-top">
                     <td className="py-2 pr-4 text-slate-700">{c.label}</td>
-                    {locations.map(l => { const v=data[l.id]?.[`cat:${c.id}`]; return (
-                      <td key={l.id} className="px-3 py-2 text-center">
-                        {v ? <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background:v==="in_house"?"#dcfce7":"#ffedd5", color:v==="in_house"?"#15803d":"#c2410c" }}>{v==="in_house"?"In-House":"Outsource"}</span> : <span className="text-slate-300">—</span>}
+                    {locations.map(l => { const e=l.cats?.[c.id]; return (
+                      <td key={l.id} className="px-3 py-2">
+                        {modeChip(e?.mode)}
+                        {e && (e.mode==="in_house"||e.mode==="both") && e.designers!==""&&e.designers!=null && <div className="mt-1 text-[11px] text-slate-500">{e.designers} designer{Number(e.designers)===1?"":"s"}</div>}
+                        {e && (e.mode==="outsource"||e.mode==="both") && e.partner && <div className="mt-1 text-[11px] text-slate-500">{e.partner}</div>}
                       </td>
                     );})}
                   </tr>
@@ -974,8 +942,68 @@ function DesignMatrixPage() {
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      {/* FORM (below) */}
+      <div className="mt-5 space-y-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <label className="text-sm font-semibold text-slate-700">Site name <span className="text-rose-500">*</span></label>
+          <input value={siteName} onChange={e=>setSiteName(e.target.value)} placeholder="e.g. Main Lab"
+            className="mt-1.5 w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
         </div>
-      )}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 text-sm font-bold text-slate-800">Design by category</h3>
+          <div className="space-y-3">
+            {DESIGN_CATEGORIES.map(c => {
+              const e = cats[c.id] || {};
+              const showDesigners = e.mode==="in_house" || e.mode==="both";
+              const showPartner = e.mode==="outsource" || e.mode==="both";
+              return (
+                <div key={c.id} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-slate-700">{c.label}</span>
+                    <div className="flex gap-1">
+                      {[["in_house","In-House"],["outsource","Outsource"],["both","Both"]].map(([val,label]) => { const on=e.mode===val; return (
+                        <button key={val} onClick={()=>setCat(c.id,{mode:val})} className="rounded-lg px-3 py-1 text-xs font-medium transition-all"
+                          style={{ background:on?"#0f172a":"#f1f5f9", color:on?"#fff":"#334155", border:`1px solid ${on?"#0f172a":"#e2e8f0"}` }}>{label}</button>
+                      );})}
+                    </div>
+                  </div>
+                  {(showDesigners || showPartner) && (
+                    <div className="mt-2 flex flex-wrap gap-3 pl-1">
+                      {showDesigners && (
+                        <label className="flex items-center gap-2 text-xs text-slate-500">
+                          In-house designers:
+                          <input type="number" min="0" value={e.designers ?? ""} onChange={ev=>setCat(c.id,{designers:ev.target.value===""?"":Math.max(0,Number(ev.target.value))})}
+                            className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-right text-sm outline-none focus:border-slate-500" />
+                        </label>
+                      )}
+                      {showPartner && (
+                        <label className="flex items-center gap-2 text-xs text-slate-500">
+                          Outsource partner:
+                          <input value={e.partner ?? ""} onChange={ev=>setCat(c.id,{partner:ev.target.value})} placeholder="Partner name"
+                            className="w-48 rounded-lg border border-slate-300 px-2.5 py-1 text-sm outline-none focus:border-slate-500" />
+                        </label>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button onClick={submit} disabled={!canSubmit}
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed"
+            style={{ background: canSubmit?"#0f172a":"#cbd5e1" }}>
+            Submit site
+          </button>
+          {!canSubmit && <span className="text-xs text-slate-400">Enter a site name to submit.</span>}
+        </div>
+      </div>
     </div>
   );
 }
