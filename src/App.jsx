@@ -297,6 +297,54 @@ function DetailPanel({ detail, stepTable, onClose }) {
 }
 
 /* ============================================================
+   MODE TOGGLE (Browse vs Decision Tree)
+   ============================================================ */
+function ModeToggle({ mode, setMode, browseLabel, treeLabel }) {
+  return (
+    <div className="mb-5 rounded-xl border border-slate-200 bg-white p-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
+        {[
+          { id:"browse", title:browseLabel, sub:"Know what you want? Pick a product from the list and jump straight to its production flow." },
+          { id:"tree", title:treeLabel, sub:"Not sure which product? Answer a few questions and we'll narrow it down to the right one." },
+        ].map(o => {
+          const on = mode === o.id;
+          return (
+            <button key={o.id} onClick={() => setMode(o.id)}
+              className="rounded-lg p-3 text-left transition-all"
+              style={{ background:on?"#0f172a":"#f8fafc", border:`1px solid ${on?"#0f172a":"#e2e8f0"}` }}>
+              <div className="text-sm font-bold" style={{ color:on?"#fff":"#0f172a" }}>{o.title}</div>
+              <div className="mt-0.5 text-[11px] leading-snug" style={{ color:on?"#cbd5e1":"#64748b" }}>{o.sub}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BrowseGrid({ products, onPick }) {
+  const groups = [...new Set(products.map(p=>p.group))];
+  return (
+    <div className="space-y-4">
+      {groups.map(g => (
+        <div key={g}>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{g}</div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {products.filter(p=>p.group===g).map(p => (
+              <button key={p.name} onClick={() => onPick(p)}
+                className="rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+                <div className="text-sm font-semibold text-slate-800">{p.name}</div>
+                <div className="mt-1 text-xs text-slate-400">{p.steps.length} steps →</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
    DENTURES VIEW
    ============================================================ */
 function CourierLeg({ label }) {
@@ -308,6 +356,7 @@ function CourierLeg({ label }) {
 }
 
 function DentureView() {
+  const [mode, setMode] = useState("browse");
   const [view, setView] = useState("journey");
   const [group, setGroup] = useState(null);
   const [product, setProduct] = useState(null);
@@ -357,6 +406,29 @@ function DentureView() {
 
   return (
     <div>
+      <ModeToggle mode={mode} setMode={(m)=>{ setMode(m); reset(); setView("journey"); }} browseLabel="Browse products" treeLabel="Decision tree (Patient journey)" />
+
+      {mode === "browse" && !product && (
+        <BrowseGrid products={D_PRODUCTS} onPick={(p)=>setProduct(p)} />
+      )}
+
+      {mode === "browse" && product && (
+        <>
+          <button onClick={()=>setProduct(null)} className="mb-3 flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <RotateCcw className="h-3.5 w-3.5" /> Back to all products
+          </button>
+          <div className="rounded-xl border p-4" style={{ borderColor:"#cbd5e1", background:"#f8fafc" }}>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Product</div>
+            <div className="text-xl font-bold text-slate-800">{product.name}</div>
+            <div className="mt-0.5 text-xs text-slate-500">{product.group} · {product.steps.length} production steps</div>
+          </div>
+          <Flowchart path={product.steps} stepTable={D_STEP} onSelect={setDetail} />
+          <Legend depts={Object.keys(DEPTS).filter(d => product.steps.some(n => D_STEP[n]?.dept===d))} />
+        </>
+      )}
+
+      {mode === "tree" && (
+      <>
       <div className="mb-3 flex gap-1.5">
         {[["journey","Patient Journey"],["flow","Product Lab Flow"]].map(([k,label]) => (
           <button key={k} onClick={() => setView(k)} className="rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-all"
@@ -438,6 +510,8 @@ function DentureView() {
           <Legend depts={Object.keys(DEPTS).filter(d => path.some(n => D_STEP[n]?.dept===d) || !sku)} />
         </>
       )}
+      </>
+      )}
 
       <DetailPanel detail={detail} stepTable={D_STEP} onClose={() => setDetail(null)} />
     </div>
@@ -465,11 +539,14 @@ function LayerPicker({ n, title, options, value, onPick, enabled, validValues })
 }
 
 function CrownBridgeView() {
+  const [mode, setMode] = useState("browse");
   const [receipt, setReceipt] = useState(null);
   const [cat, setCat] = useState(null);
   const [mat, setMat] = useState(null);
   const [fin, setFin] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [browseSku, setBrowseSku] = useState(null);
+  const [browseReceipt, setBrowseReceipt] = useState("Digital Scan");
 
   const optionsValid = (picks) => CB_SKUS.filter(s => {
     if (picks.cat && s.category!==picks.cat) return false;
@@ -484,8 +561,46 @@ function CrownBridgeView() {
   const path = useMemo(() => (sku&&receipt)?cbBuildPath(sku,receipt):[], [sku,receipt]);
   const reset = () => { setReceipt(null); setCat(null); setMat(null); setFin(null); setDetail(null); };
 
+  const browsePath = useMemo(() => browseSku ? cbBuildPath(browseSku, browseReceipt) : [], [browseSku, browseReceipt]);
+  const cbBrowseProducts = CB_SKUS.map(s => ({ name:s.name, group:s.category, steps:s.core }));
+
   return (
     <div>
+      <ModeToggle mode={mode} setMode={(m)=>{ setMode(m); reset(); setBrowseSku(null); }} browseLabel="Browse products" treeLabel="Decision tree" />
+
+      {mode === "browse" && !browseSku && (
+        <BrowseGrid products={cbBrowseProducts} onPick={(p)=>setBrowseSku(CB_SKUS.find(s=>s.name===p.name))} />
+      )}
+
+      {mode === "browse" && browseSku && (
+        <>
+          <button onClick={()=>setBrowseSku(null)} className="mb-3 flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <RotateCcw className="h-3.5 w-3.5" /> Back to all products
+          </button>
+          <div className="rounded-xl border p-4" style={{ borderColor:"#cbd5e1", background:"#f8fafc" }}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Product SKU</div>
+                <div className="text-xl font-bold text-slate-800">{browseSku.name}</div>
+                <div className="mt-0.5 text-xs text-slate-500">{browseSku.category} · {browseSku.material} · {browsePath.length} steps</div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-medium text-slate-400">Received as:</span>
+                {CB_L1.map(r => { const on=browseReceipt===r; return (
+                  <button key={r} onClick={()=>setBrowseReceipt(r)} className="rounded-lg px-2.5 py-1 text-xs font-medium transition-all"
+                    style={{ background:on?"#0f172a":"#f1f5f9", color:on?"#fff":"#334155", border:`1px solid ${on?"#0f172a":"#e2e8f0"}` }}>{r}</button>
+                );})}
+              </div>
+            </div>
+          </div>
+          <Flowchart path={browsePath} stepTable={CB_STEP} onSelect={setDetail} />
+          <Legend depts={["Data Capture","Model","Design","Machining","Wax / Metal","Finishing","Shipping"].filter(d => browsePath.some(n => CB_STEP[n]?.dept===d))} />
+          <DetailPanel detail={detail} stepTable={CB_STEP} onClose={() => setDetail(null)} />
+        </>
+      )}
+
+      {mode === "tree" && (
+      <>
       <div className="grid gap-2.5 sm:grid-cols-2">
         <LayerPicker n={1} title="1 · How is the case received?" options={CB_L1} value={receipt} onPick={setReceipt} enabled={true} />
         <LayerPicker n={2} title="2 · Product category" options={CB_L2} value={cat} onPick={(v)=>{setCat(v);setMat(null);setFin(null);}} enabled={!!receipt} />
@@ -516,6 +631,8 @@ function CrownBridgeView() {
       {sku && path.length>0 && <Flowchart path={path} stepTable={CB_STEP} onSelect={setDetail} />}
       <Legend depts={Object.keys(DEPTS).filter(d => path.some(n => CB_STEP[n]?.dept===d) || !sku).filter(d => ["Data Capture","Model","Design","Machining","Wax / Metal","Finishing","Shipping"].includes(d))} />
       <DetailPanel detail={detail} stepTable={CB_STEP} onClose={() => setDetail(null)} />
+      </>
+      )}
     </div>
   );
 }
@@ -568,50 +685,14 @@ function PlaceholderPage({ title }) {
    ROOT: admin shell with left sidebar
    ============================================================ */
 const NAV = [
-  { id:"overview",     label:"Overview",     icon:LayoutGrid },
-  { id:"workflows",    label:"Workflows",    icon:Workflow },
-  { id:"products",     label:"Products",     icon:Package },
-  { id:"order-forms",  label:"Order forms",  icon:ClipboardList },
-  { id:"organizations",label:"Organizations",icon:Building2 },
-  { id:"users",        label:"Users",        icon:Users },
-  { id:"cases",        label:"Cases",        icon:FolderOpen },
+  { id:"workflows",      label:"Workflows",      icon:Workflow },
+  { id:"products",       label:"Products",       icon:Package },
+  { id:"product-matrix", label:"Product Matrix", icon:LayoutGrid },
+  { id:"design-matrix",  label:"Design Matrix",  icon:ClipboardList },
 ];
-
-function Overview({ onGoWorkflows }) {
-  const stats = [
-    { label:"Product lines", value:"2", sub:"Crown & Bridge, Dentures" },
-    { label:"Workflows mapped", value:"23", sub:"Across both lines" },
-    { label:"Departments", value:"12", sub:"Color-coded" },
-    { label:"Production steps", value:"50+", sub:"Documented" },
-  ];
-  return (
-    <div>
-      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Admin</div>
-      <h1 className="mt-1 text-2xl font-bold text-slate-800">System overview</h1>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map(s => (
-          <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="text-sm text-slate-500">{s.label}</div>
-            <div className="mt-1 text-3xl font-bold text-slate-800">{s.value}</div>
-            <div className="mt-1 text-xs text-slate-400">{s.sub}</div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
-        <h3 className="text-base font-bold text-slate-800">Operations</h3>
-        <p className="mt-1 text-sm text-slate-500">
-          Explore production workflows from the sidebar. Open{" "}
-          <button onClick={onGoWorkflows} className="font-semibold text-slate-700 underline underline-offset-2">Workflows</button>{" "}
-          to view the Crown & Bridge and Denture decision trees and step-by-step flows.
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export default function App() {
   const [active, setActive] = useState("workflows");
-
   return (
     <div className="flex min-h-screen w-full bg-slate-50 text-slate-900" style={{ fontFamily:"ui-sans-serif, system-ui, sans-serif" }}>
       {/* Sidebar */}
@@ -636,13 +717,10 @@ export default function App() {
       {/* Main content */}
       <main className="flex-1 overflow-x-auto px-8 py-7">
         <div className="mx-auto max-w-5xl">
-          {active === "overview" && <Overview onGoWorkflows={() => setActive("workflows")} />}
           {active === "workflows" && <WorkflowsPage />}
           {active === "products" && <PlaceholderPage title="Products" />}
-          {active === "order-forms" && <PlaceholderPage title="Order forms" />}
-          {active === "organizations" && <PlaceholderPage title="Organizations" />}
-          {active === "users" && <PlaceholderPage title="Users" />}
-          {active === "cases" && <PlaceholderPage title="Cases" />}
+          {active === "product-matrix" && <PlaceholderPage title="Product Matrix" />}
+          {active === "design-matrix" && <PlaceholderPage title="Design Matrix" />}
         </div>
       </main>
     </div>
