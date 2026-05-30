@@ -1,5 +1,5 @@
 import CapacityPlannerPage from "./CapacityPlannerPage";
-import { Workflow, LayoutGrid, ClipboardList, BarChart3 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { useState, useMemo, useRef, useLayoutEffect } from "react";
 import { X, Info, RotateCcw, Check, ChevronDown, Truck, Repeat, Calendar, ArrowRight,
   LayoutGrid, Workflow, Package, ClipboardList, Building2, Users, FolderOpen, MapPin, Plus } from "lucide-react";
@@ -10,7 +10,7 @@ import { X, Info, RotateCcw, Check, ChevronDown, Truck, Repeat, Calendar, ArrowR
 const DEPTS = {
   "Data Capture":        { label:"Data Capture",        color:"#b45309", bg:"#fef3c7", border:"#fcd34d" },
   "Model":               { label:"Model",               color:"#0d9488", bg:"#ccfbf1", border:"#5eead4" },
-  "Design":              { label:"Design",              color:"#15803d", bg:"#dcfce7", border:"#86efac" },
+  "Design":              { label:"Design",               color:"#15803d", bg:"#dcfce7", border:"#86efac" },
   "Machining":           { label:"Machining",           color:"#be123c", bg:"#ffe4e6", border:"#fda4af" },
   "Wax / Metal":         { label:"Wax / Metal",         color:"#1d4ed8", bg:"#dbeafe", border:"#93c5fd" },
   "Finishing":           { label:"Finishing",           color:"#7c3aed", bg:"#ede9fe", border:"#c4b5fd" },
@@ -1041,7 +1041,7 @@ const NAV = [
   { id:"workflows",      label:"Workflows",      icon:Workflow },
   { id:"product-matrix", label:"Product Matrix", icon:LayoutGrid },
   { id:"design-matrix",  label:"Design Matrix",  icon:ClipboardList },
-  { id:"capacity", label:"Capacity Planner", icon:BarChart3 },
+  { id:"capacity",       label:"Capacity Planner", icon:BarChart3 },
 ];
 
 export default function App() {
